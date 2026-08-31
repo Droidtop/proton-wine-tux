@@ -1,0 +1,71 @@
+name: Sync upstream
+
+# Daily merge from GameNative/proton-wine, the fork this one is taken from
+# and the source of the Android port (arm64ec + x86_64, userspace ntsync)
+# that droidtop's Wine builds come from. Same technique gamenative-tux
+# uses: a real git merge, never a rebase or hard reset, so a genuine
+# conflict between upstream's work and this fork's patches fails the job
+# for a person to resolve rather than silently discarding either side.
+#
+# GameNative/proton-wine is itself a fork of ValveSoftware/wine; we track
+# GameNative rather than Valve directly because the Android port lives
+# there, and following Valve would drop it.
+#
+# Known limitation, same as gamenative-tux's: pushes here use the default
+# GITHUB_TOKEN, which GitHub deliberately does not let trigger other
+# workflow runs. The Proton build therefore won't auto-fire from this
+# workflow's own push. Add a PAT as SYNC_PAT and swap the checkout/push
+# steps to use it if that becomes wanted.
+
+on:
+  schedule:
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: proton_11.0-2
+
+      - name: Add upstream remote
+        run: git remote add upstream https://github.com/GameNative/proton-wine.git
+
+      - name: Fetch upstream
+        run: git fetch upstream proton_11.0-2
+
+      - name: Configure commit identity for the merge commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Merge upstream/proton_11.0-2
+        run: git merge upstream/proton_11.0-2 --no-edit
+
+      # This fork exists to carry droidtop-specific Wine patches. A merge
+      # already fails loudly on a real conflict, but an upstream change
+      # can also quietly REMOVE a file a patch depends on and still merge
+      # cleanly, so assert the fork's own marker survives before pushing.
+      - name: Verify the fork's patches survived the merge
+        run: |
+          if [ -f PATCHES-droidtop.md ]; then
+            echo "droidtop patch manifest present."
+          else
+            echo "::error::PATCHES-droidtop.md is missing after the upstream merge. Investigate by hand before anything is pushed."
+            exit 1
+          fi
+
+      - name: Push if there's anything new
+        run: |
+          if git diff --quiet origin/proton_11.0-2 HEAD; then
+            echo "Already up to date with upstream -- nothing to push."
+          else
+            git push origin HEAD:proton_11.0-2
+          fi
