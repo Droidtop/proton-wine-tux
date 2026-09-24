@@ -14,6 +14,9 @@ on:
     branches: [ proton_11.0-2 ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-24.04
@@ -32,9 +35,10 @@ jobs:
           df -h
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           submodules: recursive
+          persist-credentials: false
 
       - name: Set up build environment
         run: |
@@ -75,7 +79,7 @@ jobs:
 
       - name: Cache Android NDK
         id: cache-ndk
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/Android/Sdk/ndk/27.3.13750724
           key: android-ndk-r27d
@@ -91,7 +95,7 @@ jobs:
 
       - name: Cache LLVM MinGW toolchain
         id: cache-llvm-mingw
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/toolchains/llvm-mingw-20250920-ucrt-ubuntu-22.04-x86_64
           key: bylaws-llvm-mingw-20250920
@@ -105,13 +109,14 @@ jobs:
           tar -xf llvm-mingw-20250920-ucrt-ubuntu-22.04-x86_64.tar.xz
 
       - name: Check out ntsync-android (userspace ntsync)
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           repository: GameNative/ntsync-android
           path: ntsync-android
+          persist-credentials: false
 
       - name: Set up Rust for ntsync-android
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
         with:
           targets: aarch64-linux-android, x86_64-linux-android
 
@@ -119,7 +124,7 @@ jobs:
       # Adopted from The412Banner/proton-wine. The build scripts wrap clang/clang++
       # in ccache automatically when it is on PATH.
       - name: Cache ccache (${{ matrix.arch }})
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.ccache
           key: ccache-p11-${{ matrix.arch }}-${{ github.sha }}
@@ -131,7 +136,7 @@ jobs:
 
       - name: Cache wine-tools
         id: cache-wine-tools
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: wine-tools
           key: wine-tools-${{ hashFiles('configure.ac', 'configure') }}
@@ -268,14 +273,14 @@ jobs:
           echo "ARCH_NAME=$ARCH_NAME" >> $GITHUB_ENV
 
       - name: Upload Proton build artifacts for ${{ matrix.arch }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proton-${{ env.ARCH_NAME }}
           path: proton-11.0-2-${{ env.ARCH_NAME }}.wcp
           retention-days: 30
 
       - name: Upload Wine build artifacts for ${{ matrix.arch }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: proton-wine-${{ env.ARCH_NAME }}
           path: proton-wine-11.0-2-${{ env.ARCH_NAME }}.wcp.xz
@@ -285,10 +290,14 @@ jobs:
     needs: build
     runs-on: ubuntu-24.04
     if: (github.event_name == 'push' && github.ref == 'refs/heads/proton_11.0-2') || github.event_name == 'workflow_dispatch'
+    # The only job that can write releases; it runs no build code, only the
+    # packaged artifacts the build job uploaded.
+    permissions:
+      contents: write
 
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           path: artifacts
 
@@ -308,7 +317,7 @@ jobs:
           echo "Generated tag: ${TAG_NAME}"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ steps.generate_tag.outputs.tag_name }}
           name: Proton Wine 11.0-2 (${{ steps.generate_tag.outputs.tag_name }})
