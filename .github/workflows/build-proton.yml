@@ -199,6 +199,15 @@ jobs:
             bash build-scripts/install-icu.sh "$HOME/compiled-files-aarch64" arm64ec
           fi
 
+      - name: Add Wine Mono for ${{ matrix.arch }}
+        # .NET Framework (and XNA/FNA) programs exit at once without it; mscoree loads it from share/wine/mono.
+        run: |
+          if [ "${{ matrix.arch }}" == "x86_64" ]; then
+            bash build-scripts/install-wine-mono.sh "$HOME/compiled-files-x86_64"
+          else
+            bash build-scripts/install-wine-mono.sh "$HOME/compiled-files-aarch64"
+          fi
+
       - name: Download prefixPack.txz for ${{ matrix.arch }}
         run: |
           if [ "${{ matrix.arch }}" == "x86_64" ]; then
