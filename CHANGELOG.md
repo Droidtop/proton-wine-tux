@@ -10,6 +10,7 @@ under Unreleased.
 
 ### Added
 
+- ICU 68.2's DLLs (icuuc68, icuin68, icudt68) in the package, the same Unicode Consortium builds Proton ships: Wine's icu.dll forwards to them, and without them every .NET 5 or later program failed at start (2026-11-05).
 - The daily upstream sync (2026-08-31), the same technique as in gamenative-tux, and a README on why the fork exists and what has actually been established (2026-08-31).
 
 ### Changed
