@@ -643,9 +643,21 @@ static BOOL unix_to_win_locale( const char *unix_name, char *win_name )
     char buffer[LOCALE_NAME_MAX_LENGTH];
     char *p, *country = NULL, *modifier = NULL;
 
+#ifdef __ANDROID__
+    /* Bionic's setlocale() has only C and C.UTF-8: for any other name it answers "C.UTF-8", so the
+     * locale a launcher asks for in LC_ALL or LANG (ja_JP.UTF-8 for a Japanese game) never reached
+     * Wine, which stayed on en-US and code page 437 (Droidtop/tracker#900). Treat bionic's answer
+     * like "C" and read the environment instead. */
+    if (unix_name && (!strcmp( unix_name, "C.UTF-8" ) || !strcmp( unix_name, "C.utf8" ) ||
+                      !strcmp( unix_name, "POSIX" )))
+        unix_name = NULL;
+#endif
     if (!unix_name || !unix_name[0] || !strcmp( unix_name, "C" ))
     {
         unix_name = getenv( "LC_ALL" );
+#ifdef __ANDROID__
+        if (!unix_name || !unix_name[0]) unix_name = getenv( "LANG" );
+#endif
         if (!unix_name || !unix_name[0]) return FALSE;
     }
 
